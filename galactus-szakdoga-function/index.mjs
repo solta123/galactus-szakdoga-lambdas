@@ -1,8 +1,45 @@
+import https from "https";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import * as d3 from 'd3';
 import { JSDOM } from 'jsdom'
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 global.document = new JSDOM('').window.document;
+
+function put(url, data) {
+    return new Promise((resolve, reject) => {
+        const req = https.request(
+            url,
+            { method: "PUT", headers: { "Content-Length": new Blob([data]).size } },
+            (res) => {
+            let responseBody = "";
+            res.on("data", (chunk) => {
+                responseBody += chunk;
+            });
+            res.on("end", () => {
+                console.log('asdasd end')
+                console.log(responseBody)
+                resolve(responseBody);
+            });
+            }
+        );
+        req.on("error", (err) => {
+            console.log('asdasd error')
+
+            console.log(err)
+            reject(err);
+        });
+        req.write(data);
+        req.end();
+    });
+}
+
+const createPresignedUrlWithClient = ({ region, bucket, key }) => {
+    const client = new S3Client({ region });
+    const command = new PutObjectCommand({ Bucket: bucket, Key: key });
+    return getSignedUrl(client, command, { expiresIn: 3600 });
+};
+
 export const handler = async (event) => {
     console.log(JSON.stringify(event))
     const drawTestShape = (polygons) => {
@@ -191,19 +228,29 @@ export const handler = async (event) => {
         drawTestShape(arrayOfPolygons);
     }
 
-    const client = new S3Client({ config: 'eu-central-1' });
-    const currentDate = new Date().toJSON();
-    const filename = `${event.projectName}/${event.projectName}_${currentDate}.html`
-    const params = {
-        Bucket: 'galactus-szakdoga-results',
-        Key: filename,
-        Body: document.getElementById('html-content').innerHTML.toString(),
-    };
-    const command = new PutObjectCommand(params)
-    await client.send(command);
+    try {
+        const currentDate = new Date().toJSON();
+        const filename = `${event.projectName}/${event.projectName}_${currentDate}.html`
+        const clientUrl = await createPresignedUrlWithClient({
+            region: 'eu-central-1',
+            bucket: 'galactus-szakdoga-results',
+            key: filename,
+        });
 
-    return {
-        statusCode: 200,
-        body: 'success'
-    };
+        await put(clientUrl, document.getElementById('html-content').innerHTML.toString());
+
+        console.log('Operation returns successfully')
+        return {
+            statusCode: 200,
+            body: 'success'
+        };
+    } catch (error) {
+        console.log(error)
+        console.log('Returnung 400: Error while uploading generated file.')
+        return {
+            statusCode: 400,
+            body: 'Error while uploading generated file.'
+        };
+    }
+    
 }

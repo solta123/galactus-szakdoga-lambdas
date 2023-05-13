@@ -13,6 +13,7 @@
   "license": "ISC",
   "dependencies": {
     "@aws-sdk/client-s3": "^3.301.0",
+    "@aws-sdk/s3-request-presigner": "^3.332.0",
     "d3": "^7.8.2",
     "jsdom": "^21.1.0"
   }
