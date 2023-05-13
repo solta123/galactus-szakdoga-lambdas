@@ -42,6 +42,7 @@ export const handler = async(event) => {
     const { projectName, password } = decodeCookie(cookie);
     
     if (!projectName || !password) {
+        console.log('Returning 400: Your credentials doesn\'t seem to be provided properly. Please sign in again!')
         return {
             statusCode: 400,
             body: JSON.stringify('Your credentials doesn\'t seem to be provided properly. Please sign in again!')
@@ -62,6 +63,7 @@ export const handler = async(event) => {
         result = JSON.parse(result);
         
         if (result.password !== password) {
+            console.log('Returning 403: No permission to upload results to this project. Please type in your credentials again!')
             return {
                 statusCode: 403,
                 body: JSON.stringify('No permission to upload results to this project. Please type in your credentials again!')
@@ -69,19 +71,20 @@ export const handler = async(event) => {
         }
     } catch (error) {
         if (error.name === 'AccessDenied') {
+            console.log('Returning 403: Project does not exist. Please register one first!')
             return {
                 statusCode: 403,
                 body: JSON.stringify('Project does not exist. Please register one first!')
             }
         }
         
+        console.log('Returning 400: Unkown error occured during authentication')
         return {
             statusCode: 400,
             body: JSON.stringify('Unkown error occured during authentication')
         }
     }
     
-    console.log(event)
     const bufferObj = Buffer.from(event.body, 'base64');
     const filename = bufferObj.toString("utf-8");
     
@@ -94,6 +97,7 @@ export const handler = async(event) => {
         const response = await client.send(command);
         let result = await streamToString(response.Body);
         
+        console.log('Operation returns successfullyl')
         return {
             statusCode: 200,
             body: result
@@ -101,6 +105,7 @@ export const handler = async(event) => {
     } catch(error) {
         console.log(error)
         
+        console.log('Returning 400: Unknown error occured while querying your results!')
         return {
             statusCode: 400,
             body: JSON.stringify('Unknown error occured while querying your results!')

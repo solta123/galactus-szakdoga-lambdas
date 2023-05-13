@@ -2,7 +2,6 @@ import { S3Client, GetObjectCommand, PutObjectCommand } from "@aws-sdk/client-s3
 
 export const handler = async(event) => {
     let { projectName, password } = event;
-    console.log(JSON.stringify(event))
     
     if (!projectName || !password) {
         const text = Buffer.from(event.body, 'base64');;
@@ -18,17 +17,14 @@ export const handler = async(event) => {
             Bucket: 'galactus-szakdoga-users',
             Key: `${projectName}.json`
         });
-        const getObjectResponse = await client.send(command);
-        console.log(getObjectResponse)
+        await client.send(command);
         
+        console.log('Returning 400: ProjectName already exists. Please use a unique identifier!')
         return {
             statusCode: 400,
             body: JSON.stringify('ProjectName already exists. Please use a unique identifier!')
         };
     } catch (error) {
-        console.log('secret not found, should register new one')
-        console.log(error)
-        
         const putCommandInput = {
           "Body": JSON.stringify(event),
           "Bucket": "galactus-szakdoga-users",
@@ -38,6 +34,7 @@ export const handler = async(event) => {
         const putResponse = await client.send(putCommand);
         console.log(putResponse)
         
+        console.log('Operation returns successfully')
         return {
             statusCode: 200,
             body: JSON.stringify('Registration was successful!')

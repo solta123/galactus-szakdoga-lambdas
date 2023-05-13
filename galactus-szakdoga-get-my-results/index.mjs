@@ -37,12 +37,13 @@ const decodeCookie = (cookie) => {
 }
 
 export const handler = async(event) => {
+    console.log('galactus-szakdoga-get-my-results started running')
     const cookie = getCookie(event.headers.cookie, 'galactusCredentials');
     
-    console.log(cookie)
     const { projectName, password } = decodeCookie(cookie);
     
     if (!projectName || !password) {
+        console.log('Returning 400: Your credentials doesn\'t seem to be provided properly. Please sign in again!')
         return {
             statusCode: 400,
             body: JSON.stringify('Your credentials doesn\'t seem to be provided properly. Please sign in again!')
@@ -63,19 +64,24 @@ export const handler = async(event) => {
         result = JSON.parse(result);
         
         if (result.password !== password) {
+            console.log('Returning 403: Password does not match')
             return {
                 statusCode: 403,
                 body: JSON.stringify('No permission to upload results to this project. Please type in your credentials again!')
             };
         }
+        console.log('Successful authentication')
     } catch (error) {
+        console.log(error)
         if (error.name === 'AccessDenied') {
+            console.log('Returning 403: Project does not exist. Please register one first!')
             return {
                 statusCode: 403,
                 body: JSON.stringify('Project does not exist. Please register one first!')
             }
         }
         
+        console.log('Returning 400: Unkown error occured during authentication')
         return {
             statusCode: 400,
             body: JSON.stringify('Unkown error occured during authentication')
@@ -91,6 +97,7 @@ export const handler = async(event) => {
         
         const responsePayload = getResult.Contents.map(file => file.Key.substring(projectName.length + 1));
         
+        console.log('Operation returns successfully')
         return {
             statusCode: 200,
             body: JSON.stringify(responsePayload)
@@ -98,6 +105,7 @@ export const handler = async(event) => {
     } catch(error) {
         console.log(error)
         
+        console.log('Returning 400: Unknown error occured while querying your results!')
         return {
             statusCode: 400,
             body: JSON.stringify('Unknown error occured while querying your results!')

@@ -10,7 +10,6 @@ const streamToString = (stream) => new Promise((resolve, reject) => {
 
 export const handler = async(event) => {
     let { projectName, password, testCoverage } = event;
-    console.log(event)
     
     if (!projectName || !password || !testCoverage) {
         const text = Buffer.from(event.body, 'base64');;
@@ -20,12 +19,9 @@ export const handler = async(event) => {
         testCoverage = parsedText.testCoverage;
     }
     
-    console.log({ projectName, password, testCoverage })
-    
     const client = new S3Client({ config: 'eu-central-1' });
     
     try {
-        console.log(`request params: ${JSON.stringify({projectName, password})}`)
         const command = new GetObjectCommand({
             Bucket: 'galactus-szakdoga-users',
             Key: `${projectName}.json`
@@ -42,9 +38,8 @@ export const handler = async(event) => {
             dowloadedPassword = parsedText.password;
         }
         
-        
-        
         if (dowloadedPassword !== password) {
+            console.log('Returning 403: No permission to upload results to this project. Please type in your credentials again!')
             return {
                 statusCode: 403,
                 body: JSON.stringify('No permission to upload results to this project. Please type in your credentials again!')
@@ -53,19 +48,20 @@ export const handler = async(event) => {
     } catch (error) {
         console.log(error)
         if (error.name === 'AccessDenied') {
+            console.log('Returning 403: Project does not exist. Please register one first!')
             return {
                 statusCode: 403,
                 body: JSON.stringify('Project does not exist. Please register one first!')
             }
         }
         
+        console.log('Returning 400: Unkown error occured during authentication')
         return {
             statusCode: 400,
             body: JSON.stringify('Unkown error occured during authentication')
         }
     }
     
-    console.log(testCoverage)
     const lambdaClient = new LambdaClient({ region: 'eu-central-1' });
     const uploadCommand = new InvokeCommand({
         FunctionName: 'galactus-szakdoga-function',
@@ -79,18 +75,21 @@ export const handler = async(event) => {
         const uploadResponse = await lambdaClient.send(uploadCommand);
         
         if (uploadResponse.FunctionError === 'Unhandled') {
+            console.log('Returning 400: Something went wrong while generating visualization.')
             return {
                 statusCode: 400,
                 body: JSON.stringify('Something went wrong while generating visualization.')
             }
         }
         
+        console.log('Operation returns successfully')
         return {
             statusCode: 200,
             body: JSON.stringify('Upload was successful!')
         };
     } catch(error) {
         console.log(error);
+        console.log('Returning 400: Unkown error occured during result upload.')
         return {
             statusCode: 400,
             body: JSON.stringify('Unkown error occured during result upload.')

@@ -9,19 +9,12 @@ const streamToString = (stream) => new Promise((resolve, reject) => {
 
 export const handler = async(event) => {
     let { projectName, password } = event;
-    console.log(JSON.stringify(event))
-    
-    const buff = new Buffer(event.body, 'base64');
-    const text = buff.toString('ascii');
-    const parsedText = JSON.parse(text);
-    projectName = parsedText.projectName;
-    password = parsedText.password;
-    console.log(JSON.parse(text))
     
     if (!projectName || !password) {
-        const params = JSON.parse(event.body);
-        projectName = params.projectName;
-        password = params.password;
+        const text = Buffer.from(event.body, 'base64');;
+        const parsedText = JSON.parse(text);
+        projectName = parsedText.projectName;
+        password = parsedText.password;    
     }
     
     const client = new S3Client({ config: 'eu-central-1' });
@@ -37,32 +30,30 @@ export const handler = async(event) => {
         let result = await streamToString(Body);
         result = JSON.parse(result);
         
-        console.log(`result: ${JSON.stringify(result)}`)
-        
         if (result.password !== password) {
+            console.log('Returning 403: Wrong project name or password. Please type in your credentials again!')
             return {
                 statusCode: 403,
                 body: JSON.stringify('Wrong project name or password. Please type in your credentials again!')
             };
         }
         
+        console.log('Operation returns successfully')
         return {
             statusCode: 200,
-            headers: {
-                'Content-Type': 'application/json',
-                'Set-Cookie': `galactusCredentials=${JSON.stringify({ projectName, password })}; Max-Age=36000; Secure; HttpOnly; SameSite=None; Path=/`
-            },
             body: 'OK'
         };
     } catch (error) {
         console.log(error)
         if (error.name === 'AccessDenied') {
+            console.log('Returning 403: Project does not exist. Please register one first!')
             return {
                 statusCode: 403,
                 body: JSON.stringify('Project does not exist. Please register one first!')
             }
         }
         
+        console.log('Returning 400: Unkown error occured during authentication')
         return {
             statusCode: 400,
             body: JSON.stringify('Unkown error occured during authentication')
